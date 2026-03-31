@@ -35,7 +35,7 @@ export default function QuizPage({ data, onCompleted }: Props) {
       correct_answer: q.correct_answer,
     }))
 
-    await submitQuizResult(data.id, answers)
+    await submitQuizResult(data!.id, answers)
     onCompleted(answers)
     navigate('/result')
   }
