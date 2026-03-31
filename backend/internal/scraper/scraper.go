@@ -32,7 +32,12 @@ func FetchURL(url string) (string, error) {
 		return "", fmt.Errorf("URL returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "text/html") && !strings.Contains(ct, "text/plain") {
+		return "", fmt.Errorf("unsupported content type: %s", ct)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
