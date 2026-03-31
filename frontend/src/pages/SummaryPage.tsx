@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import type { AnalyzeResponse } from '../types'
 
 interface Props {
@@ -9,8 +9,7 @@ export default function SummaryPage({ data }: Props) {
   const navigate = useNavigate()
 
   if (!data) {
-    navigate('/')
-    return null
+    return <Navigate to="/" replace />
   }
 
   const keyPoints = data.summary.key_points

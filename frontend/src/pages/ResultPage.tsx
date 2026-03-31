@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import type { AnalyzeResponse, QuizAnswer } from '../types'
 
 interface Props {
@@ -10,8 +10,7 @@ export default function ResultPage({ data, answers }: Props) {
   const navigate = useNavigate()
 
   if (!data || answers.length === 0) {
-    navigate('/')
-    return null
+    return <Navigate to="/" replace />
   }
 
   const questions = data.quiz.questions

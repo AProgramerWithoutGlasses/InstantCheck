@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { submitQuizResult } from '../api'
 import type { AnalyzeResponse, QuizAnswer } from '../types'
 
@@ -14,8 +14,7 @@ export default function QuizPage({ data, onCompleted }: Props) {
   const [submitting, setSubmitting] = useState(false)
 
   if (!data) {
-    navigate('/')
-    return null
+    return <Navigate to="/" replace />
   }
 
   const questions = data.quiz.questions

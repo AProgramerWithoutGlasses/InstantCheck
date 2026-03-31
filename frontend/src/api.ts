@@ -22,9 +22,13 @@ export async function submitQuizResult(
   analyzeId: number,
   answers: QuizAnswer[]
 ): Promise<void> {
-  await fetch('/api/quiz-result', {
+  const resp = await fetch('/api/quiz-result', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ analyze_id: analyzeId, answers }),
   })
+
+  if (!resp.ok) {
+    console.error('Failed to submit quiz result:', resp.status)
+  }
 }
