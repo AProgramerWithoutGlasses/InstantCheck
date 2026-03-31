@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
+
+	"github.com/AProgramerWithoutGlasses/instant-check/backend/internal/config"
 )
 
 type KeyPoint struct {
@@ -32,16 +32,16 @@ type AnalyzeResult struct {
 
 type Client struct {
 	apiKey     string
+	baseURL    string
+	model      string
 	httpClient *http.Client
 }
 
-func NewClient() *Client {
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	if apiKey == "" {
-		log.Fatal("ANTHROPIC_API_KEY environment variable is not set")
-	}
+func NewClient(cfg config.LLMConfig) *Client {
 	return &Client{
-		apiKey:     apiKey,
+		apiKey:     cfg.APIKey,
+		baseURL:    cfg.BaseURL,
+		model:      cfg.Model,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -73,7 +73,7 @@ func (c *Client) Analyze(text string) (*AnalyzeResult, int, error) {
 %s`, text)
 
 	reqBody := map[string]interface{}{
-		"model":      "claude-sonnet-4-20250514",
+		"model":      c.model,
 		"max_tokens": 4096,
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
@@ -85,14 +85,13 @@ func (c *Client) Analyze(text string) (*AnalyzeResult, int, error) {
 		return nil, 0, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(jsonBody))
+	req, err := http.NewRequest("POST", c.baseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", c.apiKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -110,12 +109,13 @@ func (c *Client) Analyze(text string) (*AnalyzeResult, int, error) {
 	}
 
 	var apiResp struct {
-		Content []struct {
-			Text string `json:"text"`
-		} `json:"content"`
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
 		Usage struct {
-			InputTokens  int `json:"input_tokens"`
-			OutputTokens int `json:"output_tokens"`
+			TotalTokens int `json:"total_tokens"`
 		} `json:"usage"`
 	}
 
@@ -123,11 +123,11 @@ func (c *Client) Analyze(text string) (*AnalyzeResult, int, error) {
 		return nil, 0, fmt.Errorf("failed to parse API response: %w", err)
 	}
 
-	if len(apiResp.Content) == 0 {
+	if len(apiResp.Choices) == 0 {
 		return nil, 0, fmt.Errorf("empty API response")
 	}
 
-	rawText := strings.TrimSpace(apiResp.Content[0].Text)
+	rawText := strings.TrimSpace(apiResp.Choices[0].Message.Content)
 	// Strip markdown code fences if present
 	rawText = strings.TrimPrefix(rawText, "```json")
 	rawText = strings.TrimPrefix(rawText, "```")
@@ -139,6 +139,5 @@ func (c *Client) Analyze(text string) (*AnalyzeResult, int, error) {
 		return nil, 0, fmt.Errorf("failed to parse LLM JSON output: %w\nraw: %s", err, rawText)
 	}
 
-	tokenUsage := apiResp.Usage.InputTokens + apiResp.Usage.OutputTokens
-	return &result, tokenUsage, nil
+	return &result, apiResp.Usage.TotalTokens, nil
 }

@@ -1,0 +1,14 @@
+server:
+  port: "8080"
+
+database:
+  host: "127.0.0.1"
+  port: "3306"
+  user: "root"
+  password: "your-db-password"
+  name: "instantcheck"
+
+llm:
+  api_key: "your-api-key"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
