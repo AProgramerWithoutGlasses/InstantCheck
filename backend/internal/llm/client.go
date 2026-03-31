@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -34,8 +36,12 @@ type Client struct {
 }
 
 func NewClient() *Client {
+	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	if apiKey == "" {
+		log.Fatal("ANTHROPIC_API_KEY environment variable is not set")
+	}
 	return &Client{
-		apiKey:     os.Getenv("ANTHROPIC_API_KEY"),
+		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -121,9 +127,16 @@ func (c *Client) Analyze(text string) (*AnalyzeResult, int, error) {
 		return nil, 0, fmt.Errorf("empty API response")
 	}
 
+	rawText := strings.TrimSpace(apiResp.Content[0].Text)
+	// Strip markdown code fences if present
+	rawText = strings.TrimPrefix(rawText, "```json")
+	rawText = strings.TrimPrefix(rawText, "```")
+	rawText = strings.TrimSuffix(rawText, "```")
+	rawText = strings.TrimSpace(rawText)
+
 	var result AnalyzeResult
-	if err := json.Unmarshal([]byte(apiResp.Content[0].Text), &result); err != nil {
-		return nil, 0, fmt.Errorf("failed to parse LLM JSON output: %w", err)
+	if err := json.Unmarshal([]byte(rawText), &result); err != nil {
+		return nil, 0, fmt.Errorf("failed to parse LLM JSON output: %w\nraw: %s", err, rawText)
 	}
 
 	tokenUsage := apiResp.Usage.InputTokens + apiResp.Usage.OutputTokens
