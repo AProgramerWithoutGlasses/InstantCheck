@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -53,7 +54,8 @@ func (h *AnalyzeHandler) Handle(c *gin.Context) {
 		var err error
 		text, err = scraper.FetchURL(req.Content)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "无法获取该网页内容: " + err.Error()})
+			log.Printf("scraper error for url %s: %v", req.Content, err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "无法获取该网页内容"})
 			return
 		}
 		if len([]rune(text)) < 100 {
@@ -73,6 +75,7 @@ func (h *AnalyzeHandler) Handle(c *gin.Context) {
 
 	if err != nil {
 		// Retry once
+		start = time.Now()
 		result, tokenUsage, err = h.LLMClient.Analyze(text)
 		duration = time.Since(start).Milliseconds()
 		if err != nil {
@@ -97,7 +100,9 @@ func (h *AnalyzeHandler) Handle(c *gin.Context) {
 	}
 
 	if h.DB != nil {
-		h.DB.Create(&logEntry)
+		if result := h.DB.Create(&logEntry); result.Error != nil {
+			log.Printf("failed to save analyze log: %v", result.Error)
+		}
 	}
 
 	resp := AnalyzeResponse{ID: logEntry.ID}
