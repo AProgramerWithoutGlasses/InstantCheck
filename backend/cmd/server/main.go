@@ -8,6 +8,8 @@ import (
 	"github.com/gin-contrib/cors"
 
 	"github.com/AProgramerWithoutGlasses/instant-check/backend/internal/database"
+	"github.com/AProgramerWithoutGlasses/instant-check/backend/internal/handler"
+	"github.com/AProgramerWithoutGlasses/instant-check/backend/internal/llm"
 )
 
 func main() {
@@ -15,7 +17,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("database connection failed: %v", err)
 	}
-	_ = db // will be used by handlers later
+
+	llmClient := llm.NewClient()
+
+	analyzeHandler := &handler.AnalyzeHandler{DB: db, LLMClient: llmClient}
+	quizResultHandler := &handler.QuizResultHandler{DB: db}
 
 	r := gin.Default()
 
@@ -25,9 +31,12 @@ func main() {
 		AllowHeaders: []string{"Content-Type"},
 	}))
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "pong"})
-	})
+	api := r.Group("/api")
+	{
+		api.POST("/analyze", analyzeHandler.Handle)
+		api.POST("/quiz-result", quizResultHandler.Handle)
+	}
 
+	log.Println("Server starting on :8080")
 	log.Fatal(r.Run(":8080"))
 }
